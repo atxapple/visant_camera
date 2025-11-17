@@ -1,0 +1,6 @@
+# Minimal dependencies for Visant Camera Device
+# Core HTTP client for API communication
+requests>=2.31.0,<3.0.0
+
+# OpenCV for camera capture (includes numpy as dependency)
+opencv-python>=4.8.0,<5.0.0
