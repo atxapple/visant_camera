@@ -1,0 +1,707 @@
+# Raspberry Pi 5 Deployment Guide - Route 1: Fresh Installation
+
+**📖 Start here:** [Main Deployment README](README.md) - Choose Route 1 or Route 2
+**⚡ Quick guide:** [QUICK-START-ROUTE1.md](QUICK-START-ROUTE1.md) - Condensed instructions
+
+---
+
+This guide covers **Route 1: Fresh Installation** - deploying Visant from scratch on vanilla Raspberry Pi OS.
+
+## Features
+
+- ✅ Auto-start after network is available
+- ✅ **Hybrid update strategy**: Pre-start + scheduled updates
+  - Updates before every boot/restart (always runs latest code)
+  - Daily 2 AM scheduled updates (for long-running devices)
+- ✅ USB webcam support
+- ✅ Automatic git pull and dependency updates
+- ✅ Systemd service management
+- ✅ Comprehensive logging
+- ✅ **Tailscale remote access** (pre-installed for secure SSH/VNC)
+
+---
+
+## Prerequisites
+
+- Raspberry Pi 5 with Raspberry Pi OS (Bookworm) 64-bit
+- USB webcam connected
+- Internet connection
+- Railway or cloud-hosted API server
+- Git repository access
+
+---
+
+## Quick Installation
+
+### 1. Download and run installation script
+
+```bash
+# On your Raspberry Pi
+cd ~
+git clone https://github.com/atxapple/visant.git
+cd visant
+sudo chmod +x deployment/install_device.sh
+
+# Option 1: Fresh install with Tailscale (recommended)
+sudo deployment/install_device.sh --tailscale-key tskey-auth-xxxxx
+
+# Option 2: Fresh install without Tailscale (can add later)
+sudo deployment/install_device.sh
+
+# Option 3: Reinstall, skip Tailscale (safe for remote reinstalls)
+sudo deployment/install_device.sh --skip-tailscale
+
+# Option 4: Reinstall, force Tailscale reconfiguration
+sudo deployment/install_device.sh --install-tailscale
+```
+
+**Installation Flags:**
+
+| Flag | Description |
+|------|-------------|
+| `--tailscale-key KEY` | Install and connect Tailscale with auth key |
+| `--skip-tailscale` | Skip Tailscale (preserves existing connection) |
+| `--install-tailscale` | Force Tailscale reconfiguration |
+
+**Note:** Tailscale provides secure remote SSH/VNC access. The installer intelligently detects existing Tailscale connections and prompts before making changes. Generate an auth key at https://login.tailscale.com/admin/settings/keys
+
+### 2. Configure the device
+
+Edit the environment file with your settings:
+
+```bash
+sudo nano /opt/visant/.env.device
+```
+
+**Required configuration:**
+```bash
+# Your Railway or cloud API URL
+API_URL=https://app.visant.ai
+
+# Unique device identifier
+DEVICE_ID=floor-01-cam
+
+# Camera device (usually 0 for first USB camera)
+CAMERA_SOURCE=0
+```
+
+### 3. Test the service
+
+```bash
+# Start the service
+sudo systemctl start visant-device-v2
+
+# Watch the logs
+sudo journalctl -u visant-device-v2 -f
+
+# You should see:
+# [device] Entering scheduled capture mode...
+# [device] Received new config: {...}
+```
+
+Press `Ctrl+C` to stop watching logs.
+
+### 4. Enable auto-start
+
+```bash
+# The service is already enabled by install script
+# Verify it's enabled:
+sudo systemctl is-enabled visant-device-v2
+
+# Check status
+sudo systemctl status visant-device-v2
+```
+
+### 5. Verify update timer
+
+```bash
+# Check that the update timer is scheduled
+sudo systemctl list-timers visant-update
+
+# You should see it scheduled for next trigger (02:00 daily or on next boot)
+```
+
+### 6. Verify deployment
+
+```bash
+# Run automated verification
+sudo deployment/verify_deployment.sh
+```
+
+This will check all critical components and report any issues.
+
+### 7. Reboot and verify
+
+```bash
+sudo reboot
+```
+
+After reboot, wait 30 seconds then check:
+
+```bash
+# Should show "active (running)"
+sudo systemctl status visant-device-v2
+
+# Should show recent logs
+sudo journalctl -u visant-device-v2 --since "5 minutes ago"
+```
+
+---
+
+## Fleet Deployment
+
+### Option 1: Individual Installation
+
+For 1-5 devices, follow the Quick Installation steps above for each device.
+
+### Option 2: Clone Golden Image (Recommended for 5+ devices)
+
+For deploying many devices, it's much faster to:
+1. Set up one perfect "golden" device
+2. Create an SD card image
+3. Clone the image to multiple SD cards
+4. Customize each clone with unique device ID
+
+**See detailed instructions:** [CLONING.md](CLONING.md)
+
+**Quick overview:**
+
+```bash
+# One-time: Create golden image
+sudo deployment/install_device.sh
+sudo deployment/prepare_for_clone.sh
+# Then create SD card image on your computer
+
+# Per device: Clone and customize
+# 1. Write image to SD card
+# 2. Boot and customize:
+ssh mok@raspberrypi.local
+sudo deployment/customize_clone.sh
+```
+
+This approach saves hours when deploying 10+ devices!
+
+---
+
+## Additional Services
+
+### Remote Access (Tailscale)
+
+Tailscale is **automatically installed** during device setup. If you didn't provide an auth key during installation, connect now:
+
+**See detailed instructions:** [TAILSCALE.md](TAILSCALE.md)
+
+```bash
+# Connect to Tailscale (if not done during installation)
+sudo deployment/install_tailscale.sh --auth-key YOUR_KEY
+```
+
+### WiFi Configuration
+
+#### Option 1: Comitup (Recommended for Field Deployment)
+
+Zero-touch WiFi setup via web interface - no SSH needed!
+
+**See detailed instructions:** [COMITUP.md](COMITUP.md)
+
+```bash
+# Install Comitup
+sudo deployment/install_comitup.sh
+
+# Usage (on-site):
+# 1. Connect phone to 'visant-XXXX' WiFi (no password)
+# 2. Open browser to http://10.41.0.1
+# 3. Select and configure customer WiFi
+```
+
+#### Option 2: WiFi Script (For Remote Management)
+
+Easy WiFi setup for technicians with SSH access:
+
+**See detailed instructions:** [WIFI.md](WIFI.md)
+
+```bash
+# Add WiFi network
+~/addwifi.sh "Network-Name" "password" [priority]
+
+# List saved networks
+~/addwifi.sh --list
+```
+
+---
+
+## Manual Operations
+
+### View Logs
+
+```bash
+# Live tail
+sudo journalctl -u visant-device-v2 -f
+
+# Last 100 lines
+sudo journalctl -u visant-device-v2 -n 100
+
+# Logs since yesterday
+sudo journalctl -u visant-device-v2 --since yesterday
+
+# Update logs
+sudo journalctl -u visant-update --since yesterday
+```
+
+### Service Control
+
+```bash
+# Start
+sudo systemctl start visant-device-v2
+
+# Stop
+sudo systemctl stop visant-device-v2
+
+# Restart
+sudo systemctl restart visant-device-v2
+
+# Disable auto-start
+sudo systemctl disable visant-device-v2
+
+# Re-enable auto-start
+sudo systemctl enable visant-device-v2
+```
+
+### Manual Update
+
+```bash
+# Run update script manually
+sudo /opt/visant/deployment/update_device.sh
+
+# View update logs
+sudo cat /var/log/visant-update.log
+```
+
+### Check Update Timer
+
+```bash
+# List all timers
+sudo systemctl list-timers
+
+# Check specific timer status
+sudo systemctl status visant-update.timer
+
+# Manually trigger update now (for testing)
+sudo systemctl start visant-update.service
+```
+
+---
+
+## Troubleshooting
+
+### Service won't start
+
+```bash
+# Check detailed status
+sudo systemctl status visant-device-v2
+
+# Check if camera is accessible
+ls -l /dev/video*
+v4l2-ctl --list-devices
+
+# Verify pi user is in video group
+groups pi
+
+# If not, add and reboot:
+sudo usermod -a -G video pi
+sudo reboot
+```
+
+### Camera not found
+
+```bash
+# List video devices
+v4l2-ctl --list-devices
+
+# Test camera with v4l2
+v4l2-ctl --device=/dev/video0 --all
+
+# If camera is /dev/video1, edit .env.device:
+sudo nano /opt/visant/.env.device
+# Change: CAMERA_SOURCE=1
+sudo systemctl restart visant-device-v2
+```
+
+### Network connection fails
+
+```bash
+# Check if API URL is reachable
+curl -I https://app.visant.ai
+
+# Check DNS resolution
+nslookup app.visant.ai
+
+# Check network status
+ip addr
+ping -c 4 8.8.8.8
+```
+
+### Updates not happening
+
+```bash
+# Check timer status
+sudo systemctl status visant-update.timer
+
+# Check if timer is enabled
+sudo systemctl is-enabled visant-update.timer
+
+# If not enabled:
+sudo systemctl enable visant-update.timer
+
+# Check last run
+sudo journalctl -u visant-update.service -n 50
+
+# Manually test update
+sudo /opt/visant/deployment/update_device.sh
+```
+
+### High CPU or memory usage
+
+```bash
+# Check resource usage
+htop
+# or
+top
+
+# View service resource limits
+systemctl show visant-device-v2 | grep -i memory
+systemctl show visant-device-v2 | grep -i cpu
+
+# Adjust limits in service file if needed
+sudo nano /etc/systemd/system/visant-device-v2.service
+# Modify MemoryMax= and CPUQuota= values
+sudo systemctl daemon-reload
+sudo systemctl restart visant-device-v2
+```
+
+### Disk space issues
+
+```bash
+# Check disk usage
+df -h
+
+# Check debug captures size (if enabled)
+du -sh /opt/visant/debug_captures
+
+# Clean old debug captures (older than 7 days)
+find /opt/visant/debug_captures -type f -mtime +7 -delete
+```
+
+**Note:** Debug frame saving is **disabled by default** (`SAVE_FRAMES_DIR=` is blank). Enable only for troubleshooting:
+
+```bash
+sudo nano /opt/visant/.env.device
+# Set: SAVE_FRAMES_DIR=/opt/visant/debug_captures
+sudo systemctl restart visant-device-v2
+```
+
+---
+
+## Configuration Reference
+
+### Environment Variables (.env.device)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `API_URL` | Yes | - | Cloud API endpoint (Railway/cloud URL) |
+| `DEVICE_ID` | Yes | - | Unique device identifier |
+| `CAMERA_SOURCE` | No | `0` | Camera device number (/dev/video0 = 0) |
+| `CAMERA_WARMUP` | No | `3` | Frames to discard on camera startup |
+| `API_TIMEOUT` | No | `30` | API request timeout in seconds |
+| `CONFIG_POLL_INTERVAL` | No | `5.0` | How often to check cloud config (seconds) |
+| `SAVE_FRAMES_DIR` | No | `` (disabled) | Debug frame storage (empty = disabled) |
+| `CAMERA_RESOLUTION` | No | - | Force resolution (e.g., `1920x1080`) |
+| `CAMERA_BACKEND` | No | - | OpenCV backend (e.g., `v4l2`) |
+
+### Systemd Service Files
+
+- **visant-device-v2.service**: Main device service (auto-starts on boot, includes pre-start update via ExecStartPre)
+- **visant-update.service**: Scheduled update execution service
+- **visant-update.timer**: Triggers daily updates at 02:00 (with Persistent=true for missed runs)
+
+### File Locations
+
+- Installation: `/opt/visant/`
+- Configuration: `/opt/visant/.env.device`
+- Logs: `journalctl -u visant-device-v2`
+- Update logs: `/var/log/visant-update.log`
+- Debug captures: `/opt/visant/debug_captures/`
+- Service files: `/etc/systemd/system/visant-*.service`
+
+---
+
+## Security Considerations
+
+### SSH Hardening
+
+```bash
+# Disable password authentication (use SSH keys only)
+sudo nano /etc/ssh/sshd_config
+# Set: PasswordAuthentication no
+sudo systemctl restart sshd
+```
+
+### Firewall Setup
+
+```bash
+# Install UFW
+sudo apt install ufw
+
+# Allow SSH
+sudo ufw allow 22/tcp
+
+# Enable firewall
+sudo ufw enable
+
+# Check status
+sudo ufw status
+```
+
+### Automatic Security Updates
+
+```bash
+# Install unattended-upgrades
+sudo apt install unattended-upgrades
+
+# Enable automatic security updates
+sudo dpkg-reconfigure -plow unattended-upgrades
+```
+
+---
+
+## Monitoring & Maintenance
+
+### Update Policy
+
+Visant uses a **hybrid update strategy** to ensure devices always run the latest code:
+
+#### How It Works
+
+The system uses TWO independent update mechanisms that work together:
+
+**ExecStartPre in Service File:**
+```ini
+[Service]
+ExecStartPre=+/opt/visant/deployment/pre-start-update.sh
+```
+The `+` prefix runs the script with elevated privileges. This runs BEFORE the main service starts, on every service start attempt.
+
+**Timer-Based Scheduled Updates:**
+```ini
+[Timer]
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+```
+The timer triggers daily updates for long-running devices. When triggered, it updates code and restarts the service (which then runs ExecStartPre again).
+
+#### Mechanism 1: Pre-Start Updates (Boot/Restart)
+- Runs **before** the service starts (via `ExecStartPre` in systemd)
+- Automatically updates code and dependencies on:
+  - Device boot
+  - Manual service restart (`systemctl restart visant-device-v2`)
+  - Crash recovery (service auto-restart)
+- **Fail-safe**: Service won't start if update fails (prevents running outdated code)
+- Script location: `/opt/visant/deployment/pre-start-update.sh`
+
+#### Mechanism 2: Scheduled Updates (Long-Running Devices)
+- Runs daily at **2:00 AM** (configurable)
+- Updates code, then restarts the service
+- Ensures devices that run continuously for days/weeks stay updated
+- Includes random 0-5 minute delay to avoid simultaneous updates across devices
+- If device is offline at 2 AM, runs on next boot (via `Persistent=true`)
+
+#### Update Scenarios
+
+**Scenario A: Device boots at 8 AM**
+1. Pre-start update runs → pulls latest code
+2. Service starts with updated code
+3. Continues running until next restart or 2 AM update
+
+**Scenario B: Device runs continuously for 3 days**
+1. Day 1, 2 AM: Scheduled update → restart → pre-start update → latest code
+2. Day 2, 2 AM: Scheduled update → restart → pre-start update → latest code
+3. Day 3, 2 AM: Scheduled update → restart → pre-start update → latest code
+
+**Scenario C: Device offline at 2 AM, boots at 9 AM**
+1. Pre-start update runs → pulls latest code
+2. Service starts with updated code
+3. (Scheduled update will run next day at 2 AM)
+
+#### Monitoring Updates
+
+Check update logs:
+
+```bash
+# Pre-start update logs (part of service logs)
+journalctl -u visant-device-v2 -n 50
+
+# Scheduled update logs
+journalctl -u visant-update -n 50
+sudo tail -f /var/log/visant-update.log
+```
+
+### Log Rotation
+
+Logs are automatically managed by systemd's journald. To check space:
+
+```bash
+# Check journal size
+journalctl --disk-usage
+
+# Clean logs older than 7 days
+sudo journalctl --vacuum-time=7d
+```
+
+### Debug Capture Cleanup
+
+Add a cron job to clean old captures:
+
+```bash
+# Edit crontab
+sudo crontab -e
+
+# Add line to clean files older than 7 days at 3 AM daily
+0 3 * * * find /opt/visant/debug_captures -type f -mtime +7 -delete
+```
+
+### Health Monitoring
+
+Create a simple health check script:
+
+```bash
+sudo nano /opt/visant/health_check.sh
+```
+
+```bash
+#!/bin/bash
+# Simple health check
+if systemctl is-active --quiet visant-device-v2; then
+    echo "OK: Service is running"
+    exit 0
+else
+    echo "ERROR: Service is not running"
+    exit 1
+fi
+```
+
+```bash
+sudo chmod +x /opt/visant/health_check.sh
+```
+
+---
+
+## Advanced Configuration
+
+### Change Scheduled Update Time
+
+To change the daily scheduled update time from 2:00 AM:
+
+```bash
+sudo nano /etc/systemd/system/visant-update.timer
+# Modify OnCalendar= line (e.g., OnCalendar=*-*-* 04:00:00 for 4 AM)
+sudo systemctl daemon-reload
+sudo systemctl restart visant-update.timer
+```
+
+**Note**: This only affects the scheduled daily update. Pre-start updates (on boot/restart) will still run automatically.
+
+### Multiple Devices
+
+To run multiple camera devices on one Pi:
+
+1. Create separate service files (visant-device-v2-1.service, visant-device-v2-2.service)
+2. Create separate .env files (.env.device-1, .env.device-2)
+3. Use different DEVICE_ID and CAMERA_SOURCE for each
+
+---
+
+## Uninstallation
+
+Visant includes a comprehensive uninstall script that safely removes all components while preserving Tailscale for continued remote access.
+
+### Quick Uninstall
+
+**Recommended: Keep system packages**
+
+```bash
+sudo deployment/uninstall.sh --keep-packages
+```
+
+This removes all Visant components but preserves system libraries that may be used by other applications.
+
+**Complete removal (including packages):**
+
+```bash
+sudo deployment/uninstall.sh
+```
+
+**Non-interactive (for automation):**
+
+```bash
+sudo deployment/uninstall.sh --keep-packages --yes
+```
+
+### What Gets Removed
+
+- ✗ Visant application (`/opt/visant`)
+- ✗ Systemd services and timers
+- ✗ Comitup WiFi hotspot system
+- ✗ Helper scripts (addwifi.sh)
+- ✗ Logs and temporary files
+- ✗ System packages (optional)
+
+### What Gets Preserved
+
+- ✅ **Tailscale** - Remote access maintained
+- ✅ SSH access remains intact
+- ✅ System remains accessible
+
+### Safe Remote Reinstallation
+
+After uninstalling, you can reinstall remotely without losing connection:
+
+```bash
+# Uninstall (Tailscale keeps running)
+sudo deployment/uninstall.sh --keep-packages
+
+# Reinstall without disrupting Tailscale
+sudo deployment/install_device.sh --skip-tailscale
+```
+
+📖 **Full guide:** [UNINSTALL.md](UNINSTALL.md)
+
+---
+
+## Support
+
+For issues or questions:
+1. Check the logs: `sudo journalctl -u visant-device-v2 -f`
+2. Review troubleshooting section above
+3. Open an issue on GitHub
+4. Check cloud API server status
+
+---
+
+## Changelog
+
+- **2025-11**: Enhanced hybrid update strategy
+  - Pre-start updates: Runs before every service start (boot/restart) via ExecStartPre
+  - Scheduled updates: Daily at 2:00 AM for long-running devices
+  - Fail-safe: Service won't start if update fails (prevents running outdated code)
+  - Branch awareness: Updates respect the installed branch
+  - Ensures devices always run the latest code
+- **2025-11**: Deployment improvements
+  - Added `--branch` flag to installer for flexible branch selection
+  - Smart Tailscale auto-detection during installation
+  - Comprehensive uninstall script with Tailscale preservation
+  - Git ownership fix for secure root operations
+- **2025-01**: Initial deployment documentation
+  - Systemd service with network dependency
+  - Automatic updates
+  - USB webcam support
+  - Resource limits and security hardening
