@@ -5,7 +5,7 @@
 set -e
 
 INSTALL_DIR="/opt/visant"
-REPO_URL="https://github.com/atxapple/visant.git"
+REPO_URL="https://github.com/atxapple/visant_camera.git"
 BRANCH="main"
 TAILSCALE_KEY=""
 SKIP_TAILSCALE=false
