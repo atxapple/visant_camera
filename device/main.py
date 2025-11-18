@@ -6,7 +6,7 @@ This is a simplified device client that listens for capture commands from the cl
 and executes them. All trigger scheduling logic now lives in the cloud.
 
 Usage:
-    python -m device.main_v2 \\
+    python -m device.main \\
         --api-url https://cloud.visant.com \\
         --device-id FLOOR1 \\
         --camera-source 0

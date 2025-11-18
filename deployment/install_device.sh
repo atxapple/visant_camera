@@ -7,6 +7,7 @@ set -e
 INSTALL_DIR="/opt/visant"
 REPO_URL="https://github.com/atxapple/visant_camera.git"
 BRANCH="main"
+DEVICE_ID=""
 TAILSCALE_KEY=""
 SKIP_TAILSCALE=false
 INSTALL_TAILSCALE=false
@@ -14,6 +15,10 @@ INSTALL_TAILSCALE=false
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --device-id)
+            DEVICE_ID="$2"
+            shift 2
+            ;;
         --branch)
             BRANCH="$2"
             shift 2
@@ -31,7 +36,10 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --help)
-            echo "Usage: $0 [OPTIONS]"
+            echo "Usage: $0 --device-id DEVICE_ID [OPTIONS]"
+            echo ""
+            echo "Required:"
+            echo "  --device-id ID         Unique device identifier (e.g., floor-01, entrance-cam)"
             echo ""
             echo "Options:"
             echo "  --branch BRANCH        Git branch to install from (default: main)"
@@ -41,12 +49,10 @@ while [[ $# -gt 0 ]]; do
             echo "  --help                 Show this help message"
             echo ""
             echo "Examples:"
-            echo "  sudo $0                                    # Fresh install from main branch"
-            echo "  sudo $0 --branch dev                       # Install from dev branch"
-            echo "  sudo $0 --branch feature/new-feature       # Install from feature branch"
-            echo "  sudo $0 --tailscale-key tskey-auth-xxxxx  # Fresh install with auto-connect"
-            echo "  sudo $0 --skip-tailscale                  # Reinstall, keep existing Tailscale"
-            echo "  sudo $0 --branch dev --skip-tailscale     # Install dev branch, skip Tailscale"
+            echo "  sudo $0 --device-id floor-01                                    # Fresh install"
+            echo "  sudo $0 --device-id floor-01 --branch dev                       # Install from dev branch"
+            echo "  sudo $0 --device-id floor-01 --tailscale-key tskey-auth-xxxxx  # With auto Tailscale"
+            echo "  sudo $0 --device-id floor-01 --skip-tailscale                  # Skip Tailscale"
             exit 0
             ;;
         *)
@@ -60,6 +66,14 @@ done
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
     echo "ERROR: Please run as root (use sudo)"
+    exit 1
+fi
+
+# Validate required parameters
+if [ -z "$DEVICE_ID" ]; then
+    echo "ERROR: --device-id is required"
+    echo "Usage: $0 --device-id DEVICE_ID [OPTIONS]"
+    echo "Run '$0 --help' for more information"
     exit 1
 fi
 
@@ -80,32 +94,11 @@ fi
 # Allow override via environment variable
 USER_NAME="${INSTALL_USER:-$ACTUAL_USER}"
 
-# Check if .env.device exists when Tailscale key is provided
-if [ -n "$TAILSCALE_KEY" ] && [ ! -f "/opt/visant/.env.device" ]; then
-    echo "===== IMPORTANT: Configuration Required ====="
-    echo ""
-    echo "ERROR: You provided a Tailscale key, but /opt/visant/.env.device doesn't exist yet."
-    echo ""
-    echo "The DEVICE_ID from .env.device is used to set the Tailscale hostname."
-    echo ""
-    echo "Please create the configuration file first:"
-    echo "  1. sudo mkdir -p /opt/visant"
-    echo "  2. sudo nano /opt/visant/.env.device"
-    echo "  3. Add at minimum:"
-    echo "     API_URL=https://your-api-url.com"
-    echo "     DEVICE_ID=your-device-id"
-    echo "     CAMERA_SOURCE=0"
-    echo "  4. Re-run this installer with --tailscale-key"
-    echo ""
-    echo "Or run installer without --tailscale-key and connect to Tailscale later."
-    echo ""
-    exit 1
-fi
-
 ARCH_NAME="v2.0 (Cloud-Triggered)"
 
 echo "===== Visant Device Installation ====="
 echo "Architecture: $ARCH_NAME"
+echo "Device ID: $DEVICE_ID"
 echo "Installing for user: $USER_NAME"
 echo ""
 echo "This script will:"
@@ -204,11 +197,17 @@ sudo -u "$USER_NAME" venv/bin/pip install -r requirements.txt
 
 echo ""
 echo "Step 4: Configuring environment..."
-if [ ! -f ".env.device" ]; then
-    cp deployment/.env.device.example .env.device
-    echo "Created .env.device - PLEASE EDIT THIS FILE with your configuration!"
-    echo "Edit: nano /opt/visant/.env.device"
-fi
+echo "Auto-generating .env.device configuration..."
+cp deployment/.env.device.example .env.device
+
+# Replace DEVICE_ID with user-provided value
+sed -i "s/^DEVICE_ID=.*/DEVICE_ID=$DEVICE_ID/" .env.device
+
+# Set API_URL to production endpoint
+sed -i "s|^API_URL=.*|API_URL=https://app.visant.ai|" .env.device
+
+chown "$USER_NAME:$USER_NAME" .env.device
+echo "✓ Configuration created with DEVICE_ID=$DEVICE_ID"
 
 # Create directories
 echo "Creating directories..."
@@ -363,13 +362,7 @@ else
         if [ -n "$TAILSCALE_KEY" ]; then
             echo "Connecting to Tailscale..."
 
-            # Get device ID from env file if it exists
-            DEVICE_ID=""
-            if [ -f "$INSTALL_DIR/.env.device" ]; then
-                DEVICE_ID=$(grep "^DEVICE_ID=" "$INSTALL_DIR/.env.device" | cut -d'=' -f2 | tr -d ' "' || echo "")
-            fi
-
-            # Use device ID for hostname if available, otherwise use generic name
+            # Use device ID for hostname (from command line argument)
             if [ -n "$DEVICE_ID" ] && [ "$DEVICE_ID" != "PLACEHOLDER_DEVICE_ID" ]; then
                 HOSTNAME="visant-${DEVICE_ID}"
             else
@@ -396,20 +389,19 @@ fi
 echo ""
 echo "===== Installation Complete ====="
 echo ""
+echo "✓ Device configured with ID: $DEVICE_ID"
+echo "✓ API URL: https://app.visant.ai"
 echo "✓ Comitup installed - WiFi hotspot will be available on boot"
 echo "✓ addwifi.sh installed - backup WiFi configuration tool"
 echo "✓ Tailscale installed - remote access ready"
 echo ""
 echo "Next steps:"
-echo "  1. IMPORTANT: Edit configuration: sudo nano $INSTALL_DIR/.env.device"
-echo "     - Update API_URL with your Railway/cloud URL"
-echo "     - Set DEVICE_ID to a unique identifier"
 echo ""
 echo "Configure WiFi - Choose one method:"
 echo ""
 echo "  Method 1: Comitup (Recommended - no SSH needed)"
 echo "    1. Reboot device: sudo reboot"
-echo "    2. Connect phone to 'visant-XXXX' WiFi (no password)"
+echo "    2. Connect phone to 'visant_wifi_setup_${DEVICE_ID^^}' WiFi (no password)"
 echo "    3. Open browser: http://10.41.0.1"
 echo "    4. Select and configure customer WiFi"
 echo "    📖 Full guide: deployment/COMITUP.md"
@@ -421,7 +413,6 @@ echo "    📖 Full guide: deployment/WIFI.md"
 echo ""
 if [ -z "$TAILSCALE_KEY" ]; then
     echo "Connect to Tailscale (for remote access):"
-    echo "  NOTE: Configure .env.device FIRST (DEVICE_ID is used for hostname)"
     echo "  sudo deployment/install_tailscale.sh --auth-key YOUR_KEY"
     echo ""
 fi

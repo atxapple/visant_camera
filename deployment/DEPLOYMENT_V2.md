@@ -116,23 +116,23 @@ SAVE_FRAMES_DIR=/opt/visant/debug_captures
 Install with v2.0 architecture:
 
 ```bash
-sudo deployment/install_device.sh
+sudo deployment/install_device.sh --device-id YOUR_DEVICE_ID
 ```
 
 **Installation Options:**
 
 ```bash
-# Basic v2.0 install
-sudo deployment/install_device.sh
+# Basic v2.0 install (replace floor-01 with your device ID)
+sudo deployment/install_device.sh --device-id floor-01
 
 # v2.0 with Tailscale remote access
-sudo deployment/install_device.sh --tailscale-key tskey-auth-xxxxx
+sudo deployment/install_device.sh --device-id floor-01 --tailscale-key tskey-auth-xxxxx
 
 # v2.0 from dev branch
-sudo deployment/install_device.sh --branch dev
+sudo deployment/install_device.sh --device-id floor-01 --branch dev
 
 # Reinstall v2.0, keep Tailscale
-sudo deployment/install_device.sh --skip-tailscale
+sudo deployment/install_device.sh --device-id floor-01 --skip-tailscale
 ```
 
 The installer will:
@@ -342,7 +342,7 @@ ls -l /dev/video*
 
 **Check 2: Test Camera Manually**
 ```bash
-/opt/visant/venv/bin/python -m device.main_v2 \
+/opt/visant/venv/bin/python -m device.main \
     --api-url http://your-cloud.railway.app \
     --device-id YOUR_DEVICE_ID \
     --camera-source 0 \
@@ -373,7 +373,7 @@ sudo /opt/visant/deployment/pre-start-update.sh
 ```bash
 cd /opt/visant
 source venv/bin/activate
-python -m device.main_v2 --api-url $API_URL --device-id $DEVICE_ID --camera-source 0 --verbose
+python -m device.main --api-url $API_URL --device-id $DEVICE_ID --camera-source 0 --verbose
 ```
 
 ### Permission Issues
@@ -508,7 +508,7 @@ RECONNECT_DELAY=5
 
 3. **Install v2.0 service:**
 ```bash
-sudo deployment/install_device.sh --skip-tailscale
+sudo deployment/install_device.sh --device-id YOUR_DEVICE_ID --skip-tailscale
 ```
 
 4. **Verify new service:**

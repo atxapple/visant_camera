@@ -97,14 +97,14 @@ CAMERA_SOURCE=0                         # Usually 0
 ```bash
 sudo chmod +x deployment/install_device.sh
 
-# Fresh install with Tailscale (recommended)
-sudo deployment/install_device.sh --tailscale-key tskey-auth-xxxxx
+# Fresh install with Tailscale (recommended) - replace floor-01 with your device ID
+sudo deployment/install_device.sh --device-id floor-01 --tailscale-key tskey-auth-xxxxx
 
 # Fresh install without Tailscale
-sudo deployment/install_device.sh
+sudo deployment/install_device.sh --device-id floor-01
 
 # Reinstall (skip Tailscale - safe for remote work)
-sudo deployment/install_device.sh --skip-tailscale
+sudo deployment/install_device.sh --device-id floor-01 --skip-tailscale
 ```
 
 **What this does:**
@@ -508,7 +508,7 @@ done
 | Verify deployment | `sudo deployment/verify_deployment.sh` |
 | Customize clone | `sudo deployment/customize_clone.sh` |
 | Uninstall | `sudo deployment/uninstall.sh --keep-packages` |
-| Reinstall (remote) | `sudo deployment/install_device.sh --skip-tailscale` |
+| Reinstall (remote) | `sudo deployment/install_device.sh --device-id YOUR_ID --skip-tailscale` |
 
 ---
 
