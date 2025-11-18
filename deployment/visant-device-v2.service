@@ -22,12 +22,12 @@ ExecStart=/opt/visant/venv/bin/python -m device.main \
     --api-url ${API_URL} \
     --device-id ${DEVICE_ID} \
     --camera-source ${CAMERA_SOURCE} \
-    --camera-warmup ${CAMERA_WARMUP:-2} \
-    --upload-timeout ${UPLOAD_TIMEOUT:-30} \
-    --stream-timeout ${STREAM_TIMEOUT:-70} \
-    --reconnect-delay ${RECONNECT_DELAY:-5} \
+    --camera-warmup ${CAMERA_WARMUP} \
+    --upload-timeout ${UPLOAD_TIMEOUT} \
+    --stream-timeout ${STREAM_TIMEOUT} \
+    --reconnect-delay ${RECONNECT_DELAY} \
     --save-frames \
-    --save-frames-dir "${SAVE_FRAMES_DIR:-/opt/visant/debug_captures}" \
+    --save-frames-dir ${SAVE_FRAMES_DIR} \
     --verbose
 
 # Restart policy
