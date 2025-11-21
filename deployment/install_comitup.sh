@@ -110,9 +110,6 @@ ap_name: $AP_NAME
 # Leave empty for open/passwordless access point
 ap_password:
 
-# Web service port for WiFi configuration
-web_service: 80
-
 # Enable external callback when connection state changes
 # This can be used to restart Visant service after WiFi connects
 external_callback: /usr/local/bin/comitup-callback.sh

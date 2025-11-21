@@ -149,9 +149,6 @@ ap_name: okmonitor
 # Access Point password (empty = open/no password)
 ap_password:
 
-# Web service port
-web_service: 80
-
 # Callback script for state changes
 external_callback: /usr/local/bin/comitup-callback.sh
 
