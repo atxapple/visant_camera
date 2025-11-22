@@ -98,14 +98,22 @@ class OpenCVCamera:
     """Capture frames from an OpenCV-compatible source (USB/RTSP)."""
 
     _BACKEND_ALIASES = {
+        # Cross-platform
         "any": "CAP_ANY",
         "auto": "CAP_ANY",
+        "opencv": "CAP_ANY",
+        "ffmpeg": "CAP_FFMPEG",
+        # Linux backends
+        "v4l2": "CAP_V4L2",
+        "v4l": "CAP_V4L2",
+        "gstreamer": "CAP_GSTREAMER",
+        "gst": "CAP_GSTREAMER",
+        # Windows backends
         "dshow": "CAP_DSHOW",
         "directshow": "CAP_DSHOW",
         "msmf": "CAP_MSMF",
         "mediafoundation": "CAP_MSMF",
         "vfw": "CAP_VFW",
-        "opencv": "CAP_ANY",
     }
 
     def __init__(
@@ -143,6 +151,13 @@ class OpenCVCamera:
             actual_w = int(self._cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             actual_h = int(self._cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             logger.info(f"Requested resolution {width}x{height}, actual: {actual_w}x{actual_h}")
+            # Validate resolution was set successfully (0x0 indicates failure)
+            if actual_w == 0 or actual_h == 0:
+                self._cap.release()
+                raise RuntimeError(
+                    f"Camera failed to set resolution {width}x{height}. "
+                    f"The camera may not support this resolution."
+                )
         if warmup_frames > 0:
             self._warmup(warmup_frames)
 
@@ -151,6 +166,9 @@ class OpenCVCamera:
             return cv2_module.CAP_ANY
         if isinstance(backend, int):
             return backend
+        # Handle numeric string (e.g., "200" for CAP_V4L2)
+        if isinstance(backend, str) and backend.strip().isdigit():
+            return int(backend.strip())
         key = backend.strip().lower()
         attr_name = self._BACKEND_ALIASES.get(key)
         if attr_name is None:

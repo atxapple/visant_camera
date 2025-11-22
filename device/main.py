@@ -267,6 +267,9 @@ def handle_config_update(camera, config: dict, args):
     if new_width and new_height:
         logger.info(f"Received camera config update: resolution {new_width}x{new_height}")
 
+        # Store previous resolution for fallback
+        previous_resolution = args.camera_resolution
+
         # Update args so future camera reinitializations use new resolution
         args.camera_resolution = f"{new_width}x{new_height}"
 
@@ -278,9 +281,12 @@ def handle_config_update(camera, config: dict, args):
             logger.info(f"✓ Camera reinitialized with resolution {new_width}x{new_height}")
         except Exception as e:
             logger.error(f"✗ Failed to reinitialize camera: {e}")
-            # Try to recover with original camera
+            # Revert to previous resolution and try to recover
+            logger.info(f"Reverting to previous resolution: {previous_resolution or 'default'}")
+            args.camera_resolution = previous_resolution
             try:
                 camera = setup_camera(args)
+                logger.info("✓ Camera recovered with previous resolution")
             except Exception as recovery_error:
                 logger.error(f"✗ Camera recovery failed: {recovery_error}")
 
