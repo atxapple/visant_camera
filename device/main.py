@@ -30,6 +30,7 @@ import requests
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from device.capture import OpenCVCamera, StubCamera
+from device.light_tower import LightTower
 
 logging.basicConfig(
     level=logging.INFO,
@@ -53,6 +54,12 @@ def parse_args():
     parser.add_argument("--camera-warmup", type=int, default=2, help="Number of warmup frames to discard")
     parser.add_argument("--flip-horizontal", action="store_true", help="Flip image horizontally (mirror)")
     parser.add_argument("--flip-vertical", action="store_true", help="Flip image vertically")
+
+    # Alarm tower configuration
+    parser.add_argument("--alarm-enabled", action="store_true", help="Enable alarm light tower")
+    parser.add_argument("--alarm-port", default="/dev/ttyUSB0", help="Serial port for alarm tower")
+    parser.add_argument("--alarm-baud", type=int, default=9600, help="Baud rate for alarm tower")
+    parser.add_argument("--alarm-beep-duration", type=float, default=3.0, help="Duration of beep in seconds for alerts")
 
     # Connection settings
     parser.add_argument("--upload-timeout", type=int, default=30, help="Timeout for capture upload (seconds)")
@@ -103,6 +110,24 @@ def setup_camera(args):
     except Exception as e:
         logger.error(f"Failed to initialize camera: {e}")
         sys.exit(1)
+
+
+
+def setup_light_tower(args) -> LightTower | None:
+    """Initialize light tower if enabled."""
+    if not args.alarm_enabled:
+        logger.info("Alarm tower: disabled")
+        return None
+
+    try:
+        tower = LightTower(port=args.alarm_port, baud=args.alarm_baud)
+        logger.info(f"Alarm tower: enabled (port={args.alarm_port}, baud={args.alarm_baud})")
+        # Set initial state to normal (green)
+        tower.trigger_normal()
+        return tower
+    except Exception as e:
+        logger.error(f"Failed to initialize alarm tower: {e}")
+        return None
 
 
 def encode_frame_base64(frame) -> str:
@@ -275,6 +300,34 @@ def handle_config_update(camera, config: dict, args):
     return camera
 
 
+
+def handle_alarm_command(light_tower: LightTower | None, command: dict, args):
+    """
+    Handle alarm command from cloud based on AI evaluation state.
+
+    Args:
+        light_tower: LightTower instance (or None if disabled)
+        command: Command dict with {cmd, state, record_id}
+        args: Command line arguments
+    """
+    if light_tower is None:
+        logger.debug("Alarm command received but tower is disabled")
+        return
+
+    state = command.get("state", "normal")
+    record_id = command.get("record_id", "unknown")
+
+    logger.info(f"[{record_id}] Alarm command received: state={state}")
+
+    try:
+        # Handle alarm based on AI evaluation state
+        # 'alert' -> red flash + beep (timed)
+        # 'normal' or 'uncertain' -> green on
+        light_tower.handle_alarm_state(state, beep_duration=args.alarm_beep_duration)
+    except Exception as e:
+        logger.error(f"[{record_id}] Alarm command failed: {e}")
+
+
 def main():
     """Main entry point for cloud-triggered device client."""
     args = parse_args()
@@ -292,6 +345,9 @@ def main():
 
     # Setup camera
     camera = setup_camera(args)
+
+    # Setup alarm tower
+    light_tower = setup_light_tower(args)
 
     # Connect to command stream with device version
     stream_url = f"{args.api_url}/v1/devices/{args.device_id}/commands?device_version={DEVICE_VERSION}"
@@ -341,6 +397,10 @@ def main():
                             config = event.get("config", {})
                             camera = handle_config_update(camera, config, args)
 
+                        elif event.get("cmd") == "alarm":
+                            # Handle alarm command from cloud
+                            handle_alarm_command(light_tower, event, args)
+
                         else:
                             logger.warning(f"Unknown event: {event}")
 
@@ -364,6 +424,11 @@ def main():
             logger.error(f"Unexpected error: {e}", exc_info=True)
             logger.info(f"Reconnecting in {args.reconnect_delay} seconds...")
             time.sleep(args.reconnect_delay)
+
+    # Cleanup: turn off alarm tower on exit
+    if light_tower:
+        logger.info("Turning off alarm tower...")
+        light_tower.all_off()
 
     logger.info("Device client stopped")
 
