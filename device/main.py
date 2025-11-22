@@ -51,6 +51,8 @@ def parse_args():
     parser.add_argument("--camera-backend", default=None, help="OpenCV backend (dshow, msmf, etc.)")
     parser.add_argument("--camera-resolution", default=None, help="Camera resolution (e.g., 1920x1080)")
     parser.add_argument("--camera-warmup", type=int, default=2, help="Number of warmup frames to discard")
+    parser.add_argument("--flip-horizontal", action="store_true", help="Flip image horizontally (mirror)")
+    parser.add_argument("--flip-vertical", action="store_true", help="Flip image vertically")
 
     # Connection settings
     parser.add_argument("--upload-timeout", type=int, default=30, help="Timeout for capture upload (seconds)")
@@ -164,8 +166,10 @@ def handle_capture_command(camera, command: dict, args):
     logger.info(f"[{trigger_id}] Executing capture command (type: {trigger_type})")
 
     try:
-        # Capture frame
-        frame = camera.capture()
+        # Capture frame with flip settings from config
+        flip_h = getattr(args, 'flip_horizontal', False)
+        flip_v = getattr(args, 'flip_vertical', False)
+        frame = camera.capture(flip_horizontal=flip_h, flip_vertical=flip_v)
 
         # Save debug frame if requested
         if args.save_frames:
@@ -228,6 +232,12 @@ def handle_config_update(camera, config: dict, args):
 
     new_width = camera_config.get("resolution_width")
     new_height = camera_config.get("resolution_height")
+
+    # Update flip settings (always apply, even if resolution doesn't change)
+    args.flip_horizontal = camera_config.get("flip_horizontal", False)
+    args.flip_vertical = camera_config.get("flip_vertical", False)
+    if args.flip_horizontal or args.flip_vertical:
+        logger.info(f"Flip settings updated: horizontal={args.flip_horizontal}, vertical={args.flip_vertical}")
 
     if new_width and new_height:
         logger.info(f"Received camera config update: resolution {new_width}x{new_height}")

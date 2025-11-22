@@ -163,7 +163,12 @@ class OpenCVCamera:
             if not ok:
                 break
 
-    def capture(self, flush_buffer_frames: int = 15) -> Frame:
+    def capture(
+        self,
+        flush_buffer_frames: int = 15,
+        flip_horizontal: bool = False,
+        flip_vertical: bool = False,
+    ) -> Frame:
         import os
         import time
 
@@ -181,6 +186,15 @@ class OpenCVCamera:
         ok, frame = self._cap.read()
         if not ok or frame is None:
             raise RuntimeError("Failed to capture frame from camera")
+
+        # Apply flip transformations if requested
+        # cv2.flip: 0 = vertical, 1 = horizontal, -1 = both
+        if flip_horizontal and flip_vertical:
+            frame = self._cv2.flip(frame, -1)  # Rotate 180°
+        elif flip_horizontal:
+            frame = self._cv2.flip(frame, 1)   # Mirror horizontally
+        elif flip_vertical:
+            frame = self._cv2.flip(frame, 0)   # Flip vertically
 
         # Log actual frame dimensions for debugging
         import logging
