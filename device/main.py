@@ -208,6 +208,63 @@ def handle_capture_command(camera, command: dict, args):
         logger.error(f"[{trigger_id}] ✗ Capture failed: {e}")
 
 
+def handle_config_update(camera, config: dict, args):
+    """
+    Handle configuration update from cloud.
+
+    Args:
+        camera: Current camera instance
+        config: Configuration dict from cloud (e.g., {"camera": {"resolution_width": 1920, "resolution_height": 1080}})
+        args: Command line arguments
+
+    Returns:
+        Camera instance (may be new if reinitialized)
+    """
+    camera_config = config.get("camera", {})
+
+    if not camera_config:
+        logger.debug("No camera config in update, ignoring")
+        return camera
+
+    new_width = camera_config.get("resolution_width")
+    new_height = camera_config.get("resolution_height")
+
+    if new_width and new_height:
+        logger.info(f"Received camera config update: resolution {new_width}x{new_height}")
+
+        # Update args so future camera reinitializations use new resolution
+        args.camera_resolution = f"{new_width}x{new_height}"
+
+        # Reinitialize camera with new resolution
+        try:
+            logger.info("Reinitializing camera with new resolution...")
+            camera.release()
+            camera = setup_camera(args)
+            logger.info(f"✓ Camera reinitialized with resolution {new_width}x{new_height}")
+        except Exception as e:
+            logger.error(f"✗ Failed to reinitialize camera: {e}")
+            # Try to recover with original camera
+            try:
+                camera = setup_camera(args)
+            except Exception as recovery_error:
+                logger.error(f"✗ Camera recovery failed: {recovery_error}")
+
+    elif new_width is None and new_height is None:
+        # Reset to camera default
+        logger.info("Received camera config update: reset to camera default resolution")
+        args.camera_resolution = None
+
+        try:
+            logger.info("Reinitializing camera with default resolution...")
+            camera.release()
+            camera = setup_camera(args)
+            logger.info("✓ Camera reinitialized with default resolution")
+        except Exception as e:
+            logger.error(f"✗ Failed to reinitialize camera: {e}")
+
+    return camera
+
+
 def main():
     """Main entry point for cloud-triggered device client."""
     args = parse_args()
@@ -268,6 +325,11 @@ def main():
                         elif event.get("cmd") == "capture":
                             # Execute capture command
                             handle_capture_command(camera, event, args)
+
+                        elif event.get("cmd") == "update_config":
+                            # Handle config update from cloud
+                            config = event.get("config", {})
+                            camera = handle_config_update(camera, config, args)
 
                         else:
                             logger.warning(f"Unknown event: {event}")
