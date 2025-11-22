@@ -84,21 +84,21 @@ class LightTower:
             self._beep_timer = None
 
     def trigger_alert(self, beep_duration: float = 3.0) -> None:
-        """Trigger alert state: red flash (continuous) + beep (timed).
+        """Trigger alert state: red light on (solid) + beep (timed).
 
         Args:
             beep_duration: Seconds before beep automatically turns off
         """
         self._cancel_beep_timer()
 
-        # Turn off other lights first with small delays for reliable processing
+        # Turn off other lights first
         self.send("green_off")
         time.sleep(0.05)
         self.send("yellow_off")
         time.sleep(0.05)
 
-        # Start red flash and intermittent beep
-        self.send("red_flash")
+        # Start red light (solid) and intermittent beep
+        self.send("red_on")
         time.sleep(0.05)
         self.send("beep_intermit")
 
@@ -116,16 +116,12 @@ class LightTower:
         logger.debug("Light tower: beep auto-off")
 
     def trigger_normal(self) -> None:
-        """Trigger normal state: green light on, others off."""
+        """Trigger normal state: all off, then green light on."""
         self._cancel_beep_timer()
 
-        # Explicitly turn off flash modes first (all_off only turns off solid lights)
-        self.send("red_off")
-        time.sleep(0.05)
-        self.send("yellow_off")
-        time.sleep(0.05)
-        self.send("beep_off")
-        time.sleep(0.05)
+        # Turn everything off first
+        self.all_off()
+        time.sleep(0.1)
 
         # Turn on green
         self.send("green_on")
