@@ -128,6 +128,11 @@ class OpenCVCamera:
         self._cap = cv2.VideoCapture(source, self._resolve_backend(backend, cv2))
         if not self._cap.isOpened():
             raise RuntimeError(f"Unable to open camera source {source!r}")
+
+        # Set MJPG codec to enable higher resolutions (YUYV only supports low res)
+        fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+        self._cap.set(cv2.CAP_PROP_FOURCC, fourcc)
+
         if resolution:
             width, height = resolution
             self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, float(width))
