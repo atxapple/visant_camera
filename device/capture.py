@@ -132,6 +132,12 @@ class OpenCVCamera:
             width, height = resolution
             self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, float(width))
             self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, float(height))
+            # Log actual resolution after setting (camera may not support requested resolution)
+            import logging
+            logger = logging.getLogger(__name__)
+            actual_w = int(self._cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            actual_h = int(self._cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            logger.info(f"Requested resolution {width}x{height}, actual: {actual_w}x{actual_h}")
         if warmup_frames > 0:
             self._warmup(warmup_frames)
 
@@ -170,6 +176,13 @@ class OpenCVCamera:
         ok, frame = self._cap.read()
         if not ok or frame is None:
             raise RuntimeError("Failed to capture frame from camera")
+
+        # Log actual frame dimensions for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        h, w = frame.shape[:2]
+        logger.debug(f"Captured frame dimensions: {w}x{h}")
+
         success, buffer = self._cv2.imencode(f".{self._encoding}", frame)
         if not success:
             raise RuntimeError(f"OpenCV failed to encode frame as {self._encoding}")
