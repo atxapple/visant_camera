@@ -420,6 +420,10 @@ def main():
             logger.info(f"Reconnecting in {args.reconnect_delay} seconds...")
             time.sleep(args.reconnect_delay)
 
+        except requests.exceptions.ChunkedEncodingError as e:
+            logger.warning(f"Stream connection reset, reconnecting...")
+            time.sleep(1)
+
         except Exception as e:
             logger.error(f"Unexpected error: {e}", exc_info=True)
             logger.info(f"Reconnecting in {args.reconnect_delay} seconds...")

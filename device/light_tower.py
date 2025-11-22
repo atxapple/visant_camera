@@ -7,6 +7,7 @@ based on AI evaluation results.
 """
 
 import serial
+import time
 import threading
 import logging
 
@@ -89,12 +90,15 @@ class LightTower:
         """
         self._cancel_beep_timer()
 
-        # Turn off other lights first
+        # Turn off other lights first with small delays for reliable processing
         self.send("green_off")
+        time.sleep(0.05)
         self.send("yellow_off")
+        time.sleep(0.05)
 
         # Start red flash and intermittent beep
         self.send("red_flash")
+        time.sleep(0.05)
         self.send("beep_intermit")
 
         # Schedule beep to turn off after duration
@@ -114,10 +118,13 @@ class LightTower:
         """Trigger normal state: green light on, others off."""
         self._cancel_beep_timer()
 
-        # Turn off alert indicators
+        # Turn off alert indicators with small delays for reliable processing
         self.send("red_off")
+        time.sleep(0.05)
         self.send("yellow_off")
+        time.sleep(0.05)
         self.send("beep_off")
+        time.sleep(0.05)
 
         # Turn on green
         self.send("green_on")
