@@ -94,8 +94,6 @@ class LightTower:
         # Turn off other lights first
         self.send("green_off")
         time.sleep(0.05)
-        self.send("yellow_off")
-        time.sleep(0.05)
 
         # Start red light (solid) and intermittent beep
         self.send("red_on")
@@ -120,6 +118,7 @@ class LightTower:
         self._cancel_beep_timer()
 
         # Turn everything off first
+        time.sleep(0.1)
         self.all_off()
         time.sleep(0.1)
 
