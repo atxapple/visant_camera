@@ -70,10 +70,11 @@ class LightTower:
             return False
 
     def all_off(self) -> None:
-        """Turn off all lights and buzzer."""
+        """Turn off all lights (including flash modes) and buzzer."""
         self._cancel_beep_timer()
         for cmd in ["red_off", "yellow_off", "green_off", "beep_off"]:
             self._send_raw(self.commands[cmd], cmd)
+            time.sleep(0.05)
         logger.info("Light tower: all off")
 
     def _cancel_beep_timer(self) -> None:
@@ -118,9 +119,13 @@ class LightTower:
         """Trigger normal state: green light on, others off."""
         self._cancel_beep_timer()
 
-        # First turn everything off to ensure clean state (stops flash modes)
-        self.all_off()
-        time.sleep(0.1)  # 100ms delay after all_off
+        # Explicitly turn off flash modes first (all_off only turns off solid lights)
+        self.send("red_off")
+        time.sleep(0.05)
+        self.send("yellow_off")
+        time.sleep(0.05)
+        self.send("beep_off")
+        time.sleep(0.05)
 
         # Turn on green
         self.send("green_on")
