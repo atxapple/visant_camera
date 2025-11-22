@@ -148,6 +148,11 @@ class OpenCVCamera:
 
     def _resolve_backend(self, backend: str | int | None, cv2_module) -> int:
         if backend is None:
+            # On Windows, default to DSHOW for faster initialization
+            # This only affects camera opening speed, not capture quality
+            import sys
+            if sys.platform == 'win32':
+                return cv2_module.CAP_DSHOW
             return cv2_module.CAP_ANY
         if isinstance(backend, int):
             return backend
