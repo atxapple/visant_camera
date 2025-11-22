@@ -118,13 +118,9 @@ class LightTower:
         """Trigger normal state: green light on, others off."""
         self._cancel_beep_timer()
 
-        # Turn off alert indicators with small delays for reliable processing
-        self.send("red_off")
-        time.sleep(0.05)
-        self.send("yellow_off")
-        time.sleep(0.05)
-        self.send("beep_off")
-        time.sleep(0.05)
+        # First turn everything off to ensure clean state (stops flash modes)
+        self.all_off()
+        time.sleep(0.1)  # 100ms delay after all_off
 
         # Turn on green
         self.send("green_on")
