@@ -22,6 +22,14 @@ class LightTower:
         self.baud = baud
         self._beep_timer: threading.Timer | None = None
 
+        # Verify port is accessible at startup
+        try:
+            with serial.Serial(self.port, self.baud, timeout=1) as ser:
+                pass  # Just test connection
+            logger.info(f"Light tower connected on {port}")
+        except serial.SerialException as e:
+            raise RuntimeError(f"Light tower port {port} not available: {e}")
+
         self.commands = {
             "red_on":            bytes.fromhex("A0 01 01 A2"),
             "red_flash":         bytes.fromhex("A0 01 01 B3"),
