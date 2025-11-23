@@ -49,14 +49,14 @@ def parse_args():
 
     # Camera configuration
     parser.add_argument("--camera-source", default="0", help="Camera source (0 for default webcam, path for image file, RTSP URL)")
-    parser.add_argument("--camera-backend", default=None, help="OpenCV backend (dshow, msmf, etc.)")
-    parser.add_argument("--camera-resolution", default=None, help="Camera resolution (e.g., 1920x1080)")
+    parser.add_argument("--camera-backend", default="v4l2", help="OpenCV backend (v4l2, dshow, msmf, etc.)")
+    parser.add_argument("--camera-resolution", default="640x480", help="Camera resolution (e.g., 1920x1080)")
     parser.add_argument("--camera-warmup", type=int, default=2, help="Number of warmup frames to discard")
     parser.add_argument("--flip-horizontal", action="store_true", help="Flip image horizontally (mirror)")
     parser.add_argument("--flip-vertical", action="store_true", help="Flip image vertically")
 
-    # Alarm tower configuration
-    parser.add_argument("--alarm-enabled", action="store_true", help="Enable alarm light tower")
+    # Alarm tower configuration (enabled by default, auto-disables if port unavailable)
+    parser.add_argument("--alarm-enabled", action=argparse.BooleanOptionalAction, default=True, help="Enable alarm light tower")
     parser.add_argument("--alarm-port", default="/dev/ttyUSB0", help="Serial port for alarm tower")
     parser.add_argument("--alarm-baud", type=int, default=9600, help="Baud rate for alarm tower")
     parser.add_argument("--alarm-beep-duration", type=float, default=3.0, help="Duration of beep in seconds for alerts")
