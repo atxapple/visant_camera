@@ -87,6 +87,17 @@ apt-get update || {
     exit 1
 }
 
+# Step 3.5: Install Bookworm-compatible python3-networkmanager
+# On Raspberry Pi OS Bookworm, the default python3-networkmanager package
+# doesn't recognize newer NetworkManager device types, causing Comitup's
+# WiFi list to appear empty. The Comitup repository provides a patched
+# version (2.2-3) that fixes this issue.
+# See: https://github.com/davesteele/comitup/issues/267
+log_info "Installing Bookworm-compatible NetworkManager Python library..."
+apt-get install -y python3-networkmanager || {
+    log_warn "python3-networkmanager installation had issues, continuing..."
+}
+
 # Step 4: Install Comitup
 log_info "Step 4/5: Installing Comitup..."
 apt-get install -y comitup || {
