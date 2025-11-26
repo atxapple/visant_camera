@@ -170,6 +170,12 @@ if [ -f "$TEMPLATE_SRC" ]; then
     log_info "Installing custom WiFi success page..."
     cp "$TEMPLATE_SRC" "$TEMPLATE_DST"
     log_info "✓ Custom success page installed (replaces blank.org redirect)"
+
+    # Restart comitup to pick up template changes (if already running)
+    if systemctl is-active --quiet comitup.service; then
+        log_info "Restarting Comitup to apply template changes..."
+        systemctl restart comitup.service
+    fi
 else
     log_warn "Custom template not found at $TEMPLATE_SRC, using default Comitup page"
 fi

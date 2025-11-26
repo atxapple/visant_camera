@@ -76,6 +76,16 @@ log "Updating Python dependencies..."
     exit 1
 }
 
+# Re-apply custom Comitup template if available (ensures template updates are applied)
+COMITUP_TEMPLATE_SRC="$INSTALL_DIR/deployment/comitup-templates/connect.html"
+COMITUP_TEMPLATE_DST="/usr/share/comitup/web/templates/connect.html"
+
+if [ -f "$COMITUP_TEMPLATE_SRC" ] && [ -d "$(dirname "$COMITUP_TEMPLATE_DST")" ]; then
+    log "Applying custom Comitup template..."
+    cp "$COMITUP_TEMPLATE_SRC" "$COMITUP_TEMPLATE_DST"
+    systemctl restart comitup.service 2>/dev/null || true
+fi
+
 # Restart the service (this will also trigger pre-start-update.sh via ExecStartPre)
 log "Restarting $SERVICE_NAME service..."
 systemctl restart "$SERVICE_NAME"
