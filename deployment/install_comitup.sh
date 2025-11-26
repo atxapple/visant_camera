@@ -160,6 +160,20 @@ EOF
 chmod +x /usr/local/bin/comitup-callback.sh
 log_info "Created callback script at /usr/local/bin/comitup-callback.sh"
 
+# Install custom WiFi success page (removes blank.org redirect)
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEMPLATE_SRC="$SCRIPT_DIR/comitup-templates/connect.html"
+TEMPLATE_DST="/usr/share/comitup/web/templates/connect.html"
+
+if [ -f "$TEMPLATE_SRC" ]; then
+    log_info "Installing custom WiFi success page..."
+    cp "$TEMPLATE_SRC" "$TEMPLATE_DST"
+    log_info "✓ Custom success page installed (replaces blank.org redirect)"
+else
+    log_warn "Custom template not found at $TEMPLATE_SRC, using default Comitup page"
+fi
+
 # Enable and start Comitup service
 log_info "Enabling Comitup service..."
 systemctl enable comitup.service
